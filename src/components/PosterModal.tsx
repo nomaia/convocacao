@@ -37,31 +37,38 @@ async function loadImage(jogador: Jogador): Promise<HTMLImageElement> {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
-  const base = `/players/${jogador.id}-${slug}`;
 
-  const tryUrl = (url: string): Promise<HTMLImageElement> =>
-    new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = url;
-    });
-
-  // Tenta jpg, depois png, depois foto remota, depois avatar
-  for (const url of [
-    base + '.jpg',
-    base + '.png',
+  const urls = [
+    `/players/${jogador.id}-${slug}.png`,
+    `/players/${jogador.id}-${slug}.jpg`,
     jogador.foto,
     `https://ui-avatars.com/api/?name=${encodeURIComponent(jogador.nome)}&background=009c3b&color=fff&size=200&bold=true`,
-  ]) {
+  ];
+
+  for (const url of urls) {
     try {
-      return await tryUrl(url);
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const blob = await res.blob();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = dataUrl;
+      });
+      return img;
     } catch {
       continue;
     }
   }
-  return new Image(); // nunca deve chegar aqui
+
+  return new Image();
 }
 
 function roundRect(
