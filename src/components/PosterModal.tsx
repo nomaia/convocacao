@@ -30,26 +30,38 @@ const POSICAO_SHORT: Record<string, string> = {
   'Atacante': 'ATA',
 };
 
-async function loadImage(src: string, fallbackName: string): Promise<HTMLImageElement> {
-  return new Promise((resolve) => {
-    const tryLoad = (url: string, isFallback = false) => {
+async function loadImage(jogador: Jogador): Promise<HTMLImageElement> {
+  const slug = jogador.nome
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+  const base = `/players/${jogador.id}-${slug}`;
+
+  const tryUrl = (url: string): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => resolve(img);
-      img.onerror = () => {
-        if (!isFallback) {
-          tryLoad(
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=009c3b&color=fff&size=200&bold=true&font-size=0.35`,
-            true
-          );
-        } else {
-          resolve(img);
-        }
-      };
+      img.onerror = reject;
       img.src = url;
-    };
-    tryLoad(src);
-  });
+    });
+
+  // Tenta jpg, depois png, depois foto remota, depois avatar
+  for (const url of [
+    base + '.jpg',
+    base + '.png',
+    jogador.foto,
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(jogador.nome)}&background=009c3b&color=fff&size=200&bold=true`,
+  ]) {
+    try {
+      return await tryUrl(url);
+    } catch {
+      continue;
+    }
+  }
+  return new Image(); // nunca deve chegar aqui
 }
 
 function roundRect(
@@ -193,7 +205,7 @@ async function gerarCanvas(jogadores: Jogador[], nomeUsuario: string): Promise<H
       // Foto
       const imgY = cardY + CH_HDR;
       try {
-        const img = await loadImage(j.foto, j.nome);
+        const img = await loadImage(j);
         ctx.save();
         ctx.beginPath();
         ctx.rect(X, imgY, CW, CH_IMG);

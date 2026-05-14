@@ -14,6 +14,16 @@ export interface Jogador {
   gols: number;
 }
 
+export function fotoLocal(jogador: Jogador): string {
+  const slug = jogador.nome
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+  return `/players/${jogador.id}-${slug}`;
+}
+
 export const jogadores: Jogador[] = [
   // GOLEIROS
   {
