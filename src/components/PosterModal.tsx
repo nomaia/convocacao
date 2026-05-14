@@ -68,7 +68,6 @@ async function loadImage(jogador: Jogador): Promise<HTMLImageElement> {
 
   const urls = [
     `/players/${jogador.id}-${slug}.png`,
-    `/players/${jogador.id}-${slug}.jpg`,
     jogador.foto,
     `https://ui-avatars.com/api/?name=${encodeURIComponent(jogador.nome)}&background=009c3b&color=fff&size=200&bold=true`,
   ];

@@ -65,12 +65,9 @@ export default function JogadorCard({ jogador, selecionado, onToggle, podeSeleci
             const t = e.target as HTMLImageElement;
             if (!t.dataset.tried) {
               t.dataset.tried = '1';
-              t.src = `/players/${jogador.id}-${slug}.jpg`;
+              t.src = jogador.foto;
             } else if (t.dataset.tried === '1') {
               t.dataset.tried = '2';
-              t.src = jogador.foto;
-            } else if (t.dataset.tried === '2') {
-              t.dataset.tried = '3';
               t.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(jogador.nome)}&background=009c3b&color=fff&size=200&bold=true&font-size=0.35`;
             }
           }}
