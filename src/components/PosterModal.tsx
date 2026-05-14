@@ -30,47 +30,6 @@ const POSICAO_SHORT: Record<string, string> = {
   'Atacante': 'ATA',
 };
 
-async function loadImage(jogador: Jogador): Promise<HTMLImageElement> {
-  const slug = jogador.nome
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-
-  const urls = [
-    `/players/${jogador.id}-${slug}.png`,
-    `/players/${jogador.id}-${slug}.jpg`,
-    jogador.foto,
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(jogador.nome)}&background=009c3b&color=fff&size=200&bold=true`,
-  ];
-
-  for (const url of urls) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const blob = await res.blob();
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const i = new Image();
-        i.onload = () => resolve(i);
-        i.onerror = reject;
-        i.src = dataUrl;
-      });
-      return img;
-    } catch {
-      continue;
-    }
-  }
-
-  return new Image();
-}
-
 function roundRect(
   ctx: CanvasRenderingContext2D,
   x: number, y: number,
@@ -99,14 +58,72 @@ function truncate(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return t + '…';
 }
 
+async function loadImage(jogador: Jogador): Promise<HTMLImageElement> {
+  const slug = jogador.nome
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
+  const urls = [
+    `/players/${jogador.id}-${slug}.png`,
+    `/players/${jogador.id}-${slug}.jpg`,
+    jogador.foto,
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(jogador.nome)}&background=009c3b&color=fff&size=200&bold=true`,
+  ];
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const blob = await res.blob();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => {
+          if (i.width > 0) resolve(i);
+          else reject(new Error('width 0'));
+        };
+        i.onerror = reject;
+        i.src = dataUrl;
+      });
+      return img;
+    } catch {
+      continue;
+    }
+  }
+
+  // Fallback absoluto
+  const res = await fetch(
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(jogador.nome)}&background=009c3b&color=fff&size=200`
+  );
+  const blob = await res.blob();
+  const dataUrl = await new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+  return new Promise((resolve) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.src = dataUrl;
+  });
+}
+
 async function gerarCanvas(jogadores: Jogador[], nomeUsuario: string): Promise<HTMLCanvasElement> {
   const SCALE = 2;
   const W = 960;
   const PAD = 28;
-  const CW = 90;   // card width
+  const CW = 92;
   const CH_HDR = 15;
-  const CH_IMG = 58;
-  const CH_NAM = 26;
+  const CH_IMG = 60;
+  const CH_NAM = 28;
   const CH_FT = 13;
   const CARD_H = CH_HDR + CH_IMG + CH_NAM + CH_FT;
   const GAP = 7;
@@ -119,33 +136,34 @@ async function gerarCanvas(jogadores: Jogador[], nomeUsuario: string): Promise<H
     { pos: 'Atacante', label: 'ATACANTES', cor: '#ef4444', short: 'ATA', lista: jogadores.filter(j => j.posicao === 'Atacante') },
   ].filter(g => g.lista.length > 0);
 
-  // 1. Calcula altura total primeiro
-  let totalH = PAD + 110; // header
+  // Calcula altura total
+  let totalH = PAD + 110;
   for (const g of grouped) {
     const rows = Math.ceil(g.lista.length / COLS);
     totalH += 20 + 22 + rows * (CARD_H + GAP);
   }
   totalH += 40 + PAD;
 
-  // 2. Cria canvas
+  // Cria canvas
   const canvas = document.createElement('canvas');
   canvas.width = W * SCALE;
   canvas.height = totalH * SCALE;
   const ctx = canvas.getContext('2d')!;
   ctx.scale(SCALE, SCALE);
 
-  // 3. Fundo
+  // Fundo
   ctx.fillStyle = '#002010';
   ctx.fillRect(0, 0, W, totalH);
 
-  // 4. Borda
+  // Borda
   ctx.strokeStyle = '#FFDF00';
   ctx.lineWidth = 5;
   roundRect(ctx, 3, 3, W - 6, totalH - 6, 10);
   ctx.stroke();
 
-  // 5. Header
+  // Header
   let Y = PAD + 10;
+
   ctx.fillStyle = '#FFDF00';
   ctx.font = 'bold 40px Impact';
   ctx.textAlign = 'center';
@@ -170,11 +188,11 @@ async function gerarCanvas(jogadores: Jogador[], nomeUsuario: string): Promise<H
   ctx.stroke();
   Y += 4;
 
-  // 6. Seções
+  // Seções
   for (const g of grouped) {
     Y += 16;
 
-    // Label
+    // Label da posição
     ctx.fillStyle = g.cor;
     ctx.fillRect(PAD, Y, 3, 15);
     ctx.font = 'bold 13px Impact';
@@ -182,7 +200,7 @@ async function gerarCanvas(jogadores: Jogador[], nomeUsuario: string): Promise<H
     ctx.fillText(g.label + '  (' + g.lista.length + ')', PAD + 8, Y + 13);
     Y += 22;
 
-    // Desenha cards
+    // Cards
     for (let i = 0; i < g.lista.length; i++) {
       const j = g.lista[i];
       const col = i % COLS;
@@ -190,16 +208,16 @@ async function gerarCanvas(jogadores: Jogador[], nomeUsuario: string): Promise<H
       const X = PAD + col * (CW + GAP);
       const cardY = Y + row * (CARD_H + GAP);
 
-      // Fundo card (papel)
+      // Fundo do card
       ctx.fillStyle = '#f0ebe0';
       roundRect(ctx, X, cardY, CW, CARD_H, 5);
       ctx.fill();
-      ctx.strokeStyle = '#fff';
+      ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
       roundRect(ctx, X, cardY, CW, CARD_H, 5);
       ctx.stroke();
 
-      // Header azul
+      // Header azul do card
       ctx.fillStyle = '#002776';
       ctx.fillRect(X, cardY, CW, CH_HDR);
       ctx.fillStyle = '#FFDF00';
@@ -213,19 +231,28 @@ async function gerarCanvas(jogadores: Jogador[], nomeUsuario: string): Promise<H
       const imgY = cardY + CH_HDR;
       try {
         const img = await loadImage(j);
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(X, imgY, CW, CH_IMG);
-        ctx.clip();
-        const sc = Math.max(CW / img.width, CH_IMG / img.height);
-        ctx.drawImage(img, X + (CW - img.width * sc) / 2, imgY, img.width * sc, img.height * sc);
-        ctx.restore();
+        if (img.width > 0 && img.height > 0) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(X, imgY, CW, CH_IMG);
+          ctx.clip();
+          const sc = Math.max(CW / img.width, CH_IMG / img.height);
+          const dw = img.width * sc;
+          const dh = img.height * sc;
+          const dx = X + (CW - dw) / 2;
+          const dy = imgY;
+          ctx.drawImage(img, dx, dy, dw, dh);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = '#c8dff0';
+          ctx.fillRect(X, imgY, CW, CH_IMG);
+        }
       } catch {
         ctx.fillStyle = '#c8dff0';
         ctx.fillRect(X, imgY, CW, CH_IMG);
       }
 
-      // Nome
+      // Área do nome
       const namY = cardY + CH_HDR + CH_IMG;
       ctx.fillStyle = '#002776';
       ctx.fillRect(X, namY, CW, CH_NAM);
@@ -233,15 +260,16 @@ async function gerarCanvas(jogadores: Jogador[], nomeUsuario: string): Promise<H
       const maxW = CW - 6;
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
-
-      // Tenta 1 linha
       ctx.font = 'bold 9px Impact';
+
       if (ctx.measureText(j.nome).width <= maxW) {
+        // Cabe em 1 linha
         ctx.fillText(j.nome, X + CW / 2, namY + 13);
       } else {
-        // 2 linhas
+        // Quebra em 2 linhas
         const words = j.nome.split(' ');
-        let l1 = '', l2 = '';
+        let l1 = '';
+        let l2 = '';
         for (const w of words) {
           ctx.font = 'bold 8px Impact';
           if (!l2 && ctx.measureText((l1 ? l1 + ' ' : '') + w).width <= maxW) {
@@ -257,7 +285,7 @@ async function gerarCanvas(jogadores: Jogador[], nomeUsuario: string): Promise<H
 
       // Clube
       ctx.fillStyle = '#FFDF00';
-      ctx.font = '6px Arial';
+      ctx.font = '6.5px Arial';
       ctx.fillText(truncate(ctx, j.clube, maxW), X + CW / 2, namY + CH_NAM - 2);
 
       // Footer verde
@@ -297,15 +325,14 @@ async function gerarCanvas(jogadores: Jogador[], nomeUsuario: string): Promise<H
   return canvas;
 }
 
-
 export default function PosterModal({ jogadores, nomeUsuario, onClose }: Props) {
   const [gerando, setGerando] = useState(false);
 
   const grouped = [
-    { posicao: 'Goleiro', lista: jogadores.filter(j => j.posicao === 'Goleiro') },
-    { posicao: 'Defensor', lista: jogadores.filter(j => j.posicao === 'Defensor') },
-    { posicao: 'Meio-campista', lista: jogadores.filter(j => j.posicao === 'Meio-campista') },
-    { posicao: 'Atacante', lista: jogadores.filter(j => j.posicao === 'Atacante') },
+    { pos: 'Goleiro', label: 'GOLEIROS', cor: POSICAO_COR['Goleiro'], short: 'GOL', lista: jogadores.filter(j => j.posicao === 'Goleiro') },
+    { pos: 'Defensor', label: 'DEFENSORES', cor: POSICAO_COR['Defensor'], short: 'DEF', lista: jogadores.filter(j => j.posicao === 'Defensor') },
+    { pos: 'Meio-campista', label: 'MEIO-CAMPISTAS', cor: POSICAO_COR['Meio-campista'], short: 'MEI', lista: jogadores.filter(j => j.posicao === 'Meio-campista') },
+    { pos: 'Atacante', label: 'ATACANTES', cor: POSICAO_COR['Atacante'], short: 'ATA', lista: jogadores.filter(j => j.posicao === 'Atacante') },
   ].filter(g => g.lista.length > 0);
 
   const handleDownload = async () => {
@@ -334,21 +361,28 @@ export default function PosterModal({ jogadores, nomeUsuario, onClose }: Props) 
     }}>
       {/* Botões */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <button onClick={handleDownload} disabled={gerando} style={{
-          background: '#FFDF00', color: '#002776', border: 'none',
-          borderRadius: '8px', padding: '12px 28px',
-          fontFamily: 'Bebas Neue, sans-serif', fontSize: '18px',
-          letterSpacing: '1px', cursor: gerando ? 'wait' : 'pointer',
-          boxShadow: '0 4px 16px rgba(255,223,0,0.4)', opacity: gerando ? 0.7 : 1,
-        }}>
+        <button
+          onClick={handleDownload}
+          disabled={gerando}
+          style={{
+            background: '#FFDF00', color: '#002776', border: 'none',
+            borderRadius: '8px', padding: '12px 28px',
+            fontFamily: 'Bebas Neue, sans-serif', fontSize: '18px',
+            letterSpacing: '1px', cursor: gerando ? 'wait' : 'pointer',
+            boxShadow: '0 4px 16px rgba(255,223,0,0.4)', opacity: gerando ? 0.7 : 1,
+          }}
+        >
           {gerando ? 'GERANDO...' : '⬇ BAIXAR IMAGEM'}
         </button>
-        <button onClick={onClose} style={{
-          background: 'transparent', color: 'rgba(255,255,255,0.7)',
-          border: '1px solid rgba(255,255,255,0.3)', borderRadius: '8px',
-          padding: '12px 28px', fontFamily: 'Bebas Neue, sans-serif',
-          fontSize: '18px', letterSpacing: '1px', cursor: 'pointer',
-        }}>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'transparent', color: 'rgba(255,255,255,0.7)',
+            border: '1px solid rgba(255,255,255,0.3)', borderRadius: '8px',
+            padding: '12px 28px', fontFamily: 'Bebas Neue, sans-serif',
+            fontSize: '18px', letterSpacing: '1px', cursor: 'pointer',
+          }}
+        >
           ✕ FECHAR
         </button>
       </div>
@@ -359,20 +393,27 @@ export default function PosterModal({ jogadores, nomeUsuario, onClose }: Props) 
         border: '5px solid #FFDF00', borderRadius: '12px',
         padding: '20px', maxWidth: '860px', width: '100%',
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,223,0,0.2)' }}>
-          <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '32px', color: '#FFDF00', letterSpacing: '3px' }}>⭐ MINHA SELEÇÃO</div>
-          <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '16px', color: '#009c3b', letterSpacing: '5px' }}>COPA DO MUNDO 2026</div>
+        <div style={{
+          textAlign: 'center', marginBottom: '16px',
+          paddingBottom: '12px', borderBottom: '1px solid rgba(255,223,0,0.2)',
+        }}>
+          <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '32px', color: '#FFDF00', letterSpacing: '3px' }}>
+            ⭐ MINHA SELEÇÃO
+          </div>
+          <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '16px', color: '#009c3b', letterSpacing: '5px' }}>
+            COPA DO MUNDO 2026
+          </div>
           <div style={{ fontFamily: 'Barlow, sans-serif', fontSize: '11px', color: 'rgba(255,255,255,0.4)', letterSpacing: '2px', marginTop: '4px' }}>
             CONVOCADO POR {nomeUsuario.toUpperCase()}
           </div>
         </div>
 
-        {grouped.map(({ posicao, lista }) => (
-          <div key={posicao} style={{ marginBottom: '14px' }}>
+        {grouped.map(({ pos, label, cor, short, lista }) => (
+          <div key={pos} style={{ marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-              <div style={{ width: '3px', height: '14px', background: POSICAO_COR[posicao], borderRadius: '2px' }} />
-              <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '11px', letterSpacing: '3px', color: POSICAO_COR[posicao] }}>
-                {POSICAO_LABEL[posicao]} ({lista.length})
+              <div style={{ width: '3px', height: '14px', background: cor, borderRadius: '2px' }} />
+              <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '11px', letterSpacing: '3px', color: cor }}>
+                {label} ({lista.length})
               </span>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -387,20 +428,35 @@ export default function PosterModal({ jogadores, nomeUsuario, onClose }: Props) 
                     <span style={{ color: '#FFDF00', fontSize: '6px', fontFamily: 'Bebas Neue, sans-serif' }}>🇧🇷</span>
                     <span style={{ color: '#FFDF00', fontSize: '6px', fontFamily: 'Bebas Neue, sans-serif' }}>#{j.numero}</span>
                   </div>
-                  <div style={{ height: '48px', overflow: 'hidden', background: '#c8dff0' }}>
+                  <div style={{ height: '50px', overflow: 'hidden', background: '#c8dff0', position: 'relative' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={j.foto} alt={j.nome} crossOrigin="anonymous"
+                    <img
+                      src={`/players/${j.id}-${j.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}.png`}
+                      alt={j.nome}
                       style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }}
-                      onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(j.nome)}&background=009c3b&color=fff&size=100`; }}
+                      onError={(e) => {
+                        const t = e.target as HTMLImageElement;
+                        if (!t.dataset.tried) {
+                          t.dataset.tried = '1';
+                          t.src = `/players/${j.id}-${j.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}.jpg`;
+                        } else if (t.dataset.tried === '1') {
+                          t.dataset.tried = '2';
+                          t.src = j.foto;
+                        }
+                      }}
                     />
                   </div>
                   <div style={{ background: '#002776', padding: '2px 3px', textAlign: 'center' }}>
-                    <div style={{ color: '#fff', fontFamily: 'Bebas Neue, sans-serif', fontSize: '7px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.nome}</div>
-                    <div style={{ color: '#FFDF00', fontSize: '5px', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.clube}</div>
+                    <div style={{ color: '#fff', fontFamily: 'Bebas Neue, sans-serif', fontSize: '7px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {j.nome}
+                    </div>
+                    <div style={{ color: '#FFDF00', fontSize: '5px', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {j.clube}
+                    </div>
                   </div>
                   <div style={{ background: '#009c3b', padding: '1px 3px', textAlign: 'center' }}>
                     <span style={{ color: '#FFDF00', fontFamily: 'Bebas Neue, sans-serif', fontSize: '7px' }}>
-                      {POSICAO_SHORT[posicao]}
+                      {short}
                     </span>
                   </div>
                 </div>
