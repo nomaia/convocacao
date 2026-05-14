@@ -82,267 +82,202 @@ function truncate(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
 
 async function gerarCanvas(jogadores: Jogador[], nomeUsuario: string): Promise<HTMLCanvasElement> {
   const SCALE = 2;
-  const CANVAS_W = 960;
-  const PADDING = 28;
-  const CARD_W = 92;
-  const CARD_GAP = 7;
-  const COLS = Math.floor((CANVAS_W - PADDING * 2) / (CARD_W + CARD_GAP));
+  const W = 960;
+  const PAD = 28;
+  const CW = 90;   // card width
+  const CH_HDR = 15;
+  const CH_IMG = 58;
+  const CH_NAM = 26;
+  const CH_FT = 13;
+  const CARD_H = CH_HDR + CH_IMG + CH_NAM + CH_FT;
+  const GAP = 7;
+  const COLS = Math.floor((W - PAD * 2 + GAP) / (CW + GAP));
 
-  const CARD_HEADER_H = 16;
-  const CARD_IMG_H = 60;
-  const CARD_NAME_H = 28;
-  const CARD_FOOT_H = 14;
-  const CARD_H = CARD_HEADER_H + CARD_IMG_H + CARD_NAME_H + CARD_FOOT_H;
-
-  const HEADER_H = 110;
-  const SECTION_LABEL_H = 24;
-  const SECTION_GAP = 16;
-  const FOOTER_H = 40;
-
-  const grouped: Array<{ posicao: string; lista: Jogador[] }> = [
-    { posicao: 'Goleiro', lista: jogadores.filter(j => j.posicao === 'Goleiro') },
-    { posicao: 'Defensor', lista: jogadores.filter(j => j.posicao === 'Defensor') },
-    { posicao: 'Meio-campista', lista: jogadores.filter(j => j.posicao === 'Meio-campista') },
-    { posicao: 'Atacante', lista: jogadores.filter(j => j.posicao === 'Atacante') },
+  const grouped = [
+    { pos: 'Goleiro', label: 'GOLEIROS', cor: '#f59e0b', short: 'GOL', lista: jogadores.filter(j => j.posicao === 'Goleiro') },
+    { pos: 'Defensor', label: 'DEFENSORES', cor: '#3b82f6', short: 'DEF', lista: jogadores.filter(j => j.posicao === 'Defensor') },
+    { pos: 'Meio-campista', label: 'MEIO-CAMPISTAS', cor: '#8b5cf6', short: 'MEI', lista: jogadores.filter(j => j.posicao === 'Meio-campista') },
+    { pos: 'Atacante', label: 'ATACANTES', cor: '#ef4444', short: 'ATA', lista: jogadores.filter(j => j.posicao === 'Atacante') },
   ].filter(g => g.lista.length > 0);
 
-  // Calcula altura total
-  let totalH = PADDING + HEADER_H;
-  for (const { lista } of grouped) {
-    const rows = Math.ceil(lista.length / COLS);
-    totalH += SECTION_GAP + SECTION_LABEL_H + rows * (CARD_H + CARD_GAP);
+  // 1. Calcula altura total primeiro
+  let totalH = PAD + 110; // header
+  for (const g of grouped) {
+    const rows = Math.ceil(g.lista.length / COLS);
+    totalH += 20 + 22 + rows * (CARD_H + GAP);
   }
-  totalH += FOOTER_H + PADDING;
+  totalH += 40 + PAD;
 
-  // Cria canvas
+  // 2. Cria canvas
   const canvas = document.createElement('canvas');
-  canvas.width = CANVAS_W * SCALE;
+  canvas.width = W * SCALE;
   canvas.height = totalH * SCALE;
   const ctx = canvas.getContext('2d')!;
   ctx.scale(SCALE, SCALE);
 
-  // ── Fundo ──
-  const bg = ctx.createLinearGradient(0, 0, 0, totalH);
-  bg.addColorStop(0, '#001a10');
-  bg.addColorStop(0.5, '#002d1a');
-  bg.addColorStop(1, '#001a10');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, CANVAS_W, totalH);
+  // 3. Fundo
+  ctx.fillStyle = '#002010';
+  ctx.fillRect(0, 0, W, totalH);
 
-  // ── Borda ──
+  // 4. Borda
   ctx.strokeStyle = '#FFDF00';
   ctx.lineWidth = 5;
-  roundRect(ctx, 3, 3, CANVAS_W - 6, totalH - 6, 10);
+  roundRect(ctx, 3, 3, W - 6, totalH - 6, 10);
   ctx.stroke();
 
-  // ── Header ──
-  let curY = PADDING;
-
-  // Linha esquerda
-  const lg1 = ctx.createLinearGradient(PADDING, 0, CANVAS_W / 2 - 22, 0);
-  lg1.addColorStop(0, 'rgba(255,223,0,0)');
-  lg1.addColorStop(1, 'rgba(255,223,0,0.5)');
-  ctx.strokeStyle = lg1;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(PADDING, curY + 12);
-  ctx.lineTo(CANVAS_W / 2 - 22, curY + 12);
-  ctx.stroke();
-
-  // Estrela
-  ctx.font = '20px serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('⭐', CANVAS_W / 2, curY + 16);
-
-  // Linha direita
-  const lg2 = ctx.createLinearGradient(CANVAS_W / 2 + 22, 0, CANVAS_W - PADDING, 0);
-  lg2.addColorStop(0, 'rgba(255,223,0,0.5)');
-  lg2.addColorStop(1, 'rgba(255,223,0,0)');
-  ctx.strokeStyle = lg2;
-  ctx.beginPath();
-  ctx.moveTo(CANVAS_W / 2 + 22, curY + 12);
-  ctx.lineTo(CANVAS_W - PADDING, curY + 12);
-  ctx.stroke();
-
-  curY += 28;
-
+  // 5. Header
+  let Y = PAD + 10;
   ctx.fillStyle = '#FFDF00';
-  ctx.font = '42px Impact, sans-serif';
+  ctx.font = 'bold 40px Impact';
   ctx.textAlign = 'center';
-  ctx.fillText('MINHA SELEÇÃO', CANVAS_W / 2, curY);
-  curY += 26;
+  ctx.fillText('MINHA SELECAO', W / 2, Y);
+  Y += 28;
 
   ctx.fillStyle = '#009c3b';
-  ctx.font = '18px Impact, sans-serif';
-  ctx.fillText('COPA DO MUNDO 2026', CANVAS_W / 2, curY);
-  curY += 18;
+  ctx.font = 'bold 18px Impact';
+  ctx.fillText('COPA DO MUNDO 2026', W / 2, Y);
+  Y += 20;
 
-  ctx.fillStyle = 'rgba(255,255,255,0.45)';
-  ctx.font = '12px Arial, sans-serif';
-  ctx.fillText(`CONVOCADO POR ${nomeUsuario.toUpperCase()}`, CANVAS_W / 2, curY);
-  curY += 16;
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '13px Arial';
+  ctx.fillText('CONVOCADO POR ' + nomeUsuario.toUpperCase(), W / 2, Y);
+  Y += 20;
 
-  // Linha separadora
-  ctx.strokeStyle = 'rgba(255,223,0,0.25)';
+  ctx.strokeStyle = 'rgba(255,223,0,0.3)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(PADDING, curY);
-  ctx.lineTo(CANVAS_W - PADDING, curY);
+  ctx.moveTo(PAD, Y);
+  ctx.lineTo(W - PAD, Y);
   ctx.stroke();
+  Y += 4;
 
-  // ── Seções ──
-  for (const { posicao, lista } of grouped) {
-    curY += SECTION_GAP;
+  // 6. Seções
+  for (const g of grouped) {
+    Y += 16;
 
-    // Label da posição
-    ctx.fillStyle = POSICAO_COR[posicao];
-    ctx.fillRect(PADDING, curY + 4, 3, 14);
-    ctx.font = '13px Impact, sans-serif';
+    // Label
+    ctx.fillStyle = g.cor;
+    ctx.fillRect(PAD, Y, 3, 15);
+    ctx.font = 'bold 13px Impact';
     ctx.textAlign = 'left';
-    ctx.fillText(`${POSICAO_LABEL[posicao]}  (${lista.length})`, PADDING + 8, curY + 16);
-    curY += SECTION_LABEL_H;
+    ctx.fillText(g.label + '  (' + g.lista.length + ')', PAD + 8, Y + 13);
+    Y += 22;
 
-    // Cards
-    for (let i = 0; i < lista.length; i++) {
-      const j = lista[i];
+    // Desenha cards
+    for (let i = 0; i < g.lista.length; i++) {
+      const j = g.lista[i];
       const col = i % COLS;
       const row = Math.floor(i / COLS);
-      const cx = PADDING + col * (CARD_W + CARD_GAP);
-      const cy = curY + row * (CARD_H + CARD_GAP);
+      const X = PAD + col * (CW + GAP);
+      const cardY = Y + row * (CARD_H + GAP);
 
-      // Papel (fundo card)
-      const cardBg = ctx.createLinearGradient(cx, cy, cx, cy + CARD_H);
-      cardBg.addColorStop(0, '#f5f0e8');
-      cardBg.addColorStop(1, '#ede8db');
-      ctx.fillStyle = cardBg;
-      roundRect(ctx, cx, cy, CARD_W, CARD_H, 5);
+      // Fundo card (papel)
+      ctx.fillStyle = '#f0ebe0';
+      roundRect(ctx, X, cardY, CW, CARD_H, 5);
       ctx.fill();
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
-      roundRect(ctx, cx, cy, CARD_W, CARD_H, 5);
+      roundRect(ctx, X, cardY, CW, CARD_H, 5);
       ctx.stroke();
 
-      // Header do card (azul)
-      const hy = cy;
+      // Header azul
       ctx.fillStyle = '#002776';
-      ctx.beginPath();
-      ctx.moveTo(cx + 5, hy);
-      ctx.lineTo(cx + CARD_W - 5, hy);
-      ctx.quadraticCurveTo(cx + CARD_W, hy, cx + CARD_W, hy + 5);
-      ctx.lineTo(cx + CARD_W, hy + CARD_HEADER_H);
-      ctx.lineTo(cx, hy + CARD_HEADER_H);
-      ctx.lineTo(cx, hy + 5);
-      ctx.quadraticCurveTo(cx, hy, cx + 5, hy);
-      ctx.closePath();
-      ctx.fill();
-
+      ctx.fillRect(X, cardY, CW, CH_HDR);
       ctx.fillStyle = '#FFDF00';
-      ctx.font = '7px Arial, sans-serif';
+      ctx.font = '7px Arial';
       ctx.textAlign = 'left';
-      ctx.fillText('🇧🇷 26', cx + 4, hy + 11);
+      ctx.fillText('BR 26', X + 4, cardY + 11);
       ctx.textAlign = 'right';
-      ctx.fillText(`#${j.numero}`, cx + CARD_W - 4, hy + 11);
+      ctx.fillText('#' + j.numero, X + CW - 4, cardY + 11);
 
       // Foto
-      const imgY = cy + CARD_HEADER_H;
-      const img = await loadImage(j.foto, j.nome);
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(cx, imgY, CARD_W, CARD_IMG_H);
-      ctx.clip();
-      const sc = Math.max(CARD_W / img.width, CARD_IMG_H / img.height);
-      const dw = img.width * sc;
-      const dh = img.height * sc;
-      ctx.drawImage(img, cx + (CARD_W - dw) / 2, imgY, dw, dh);
-      ctx.restore();
+      const imgY = cardY + CH_HDR;
+      try {
+        const img = await loadImage(j.foto, j.nome);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(X, imgY, CW, CH_IMG);
+        ctx.clip();
+        const sc = Math.max(CW / img.width, CH_IMG / img.height);
+        ctx.drawImage(img, X + (CW - img.width * sc) / 2, imgY, img.width * sc, img.height * sc);
+        ctx.restore();
+      } catch {
+        ctx.fillStyle = '#c8dff0';
+        ctx.fillRect(X, imgY, CW, CH_IMG);
+      }
 
-      // Área nome
-      const nameY = cy + CARD_HEADER_H + CARD_IMG_H;
+      // Nome
+      const namY = cardY + CH_HDR + CH_IMG;
       ctx.fillStyle = '#002776';
-      ctx.fillRect(cx, nameY, CARD_W, CARD_NAME_H);
+      ctx.fillRect(X, namY, CW, CH_NAM);
 
-      const maxW = CARD_W - 8;
-
-      // Nome — tenta caber em 1 linha, senão quebra em 2
-      ctx.textAlign = 'center';
+      const maxW = CW - 6;
       ctx.fillStyle = '#ffffff';
-      const nomeCompleto = j.nome;
-      ctx.font = 'bold 9px Impact, sans-serif';
+      ctx.textAlign = 'center';
 
-      if (ctx.measureText(nomeCompleto).width <= maxW) {
-        // Cabe em 1 linha
-        ctx.fillText(nomeCompleto, cx + CARD_W / 2, nameY + 12);
+      // Tenta 1 linha
+      ctx.font = 'bold 9px Impact';
+      if (ctx.measureText(j.nome).width <= maxW) {
+        ctx.fillText(j.nome, X + CW / 2, namY + 13);
       } else {
-        // Divide em 2 partes
-        const words = nomeCompleto.split(' ');
-        let l1 = '';
-        let l2 = '';
+        // 2 linhas
+        const words = j.nome.split(' ');
+        let l1 = '', l2 = '';
         for (const w of words) {
-          const test = l1 ? l1 + ' ' + w : w;
-          if (!l2 && ctx.measureText(test).width <= maxW) {
-            l1 = test;
+          ctx.font = 'bold 8px Impact';
+          if (!l2 && ctx.measureText((l1 ? l1 + ' ' : '') + w).width <= maxW) {
+            l1 += (l1 ? ' ' : '') + w;
           } else {
-            l2 = l2 ? l2 + ' ' + w : w;
+            l2 += (l2 ? ' ' : '') + w;
           }
         }
-        // Se l2 ainda não cabe, trunca
-        ctx.font = 'bold 8px Impact, sans-serif';
-        l2 = truncate(ctx, l2, maxW);
-        ctx.fillText(l1, cx + CARD_W / 2, nameY + 9);
-        ctx.fillText(l2, cx + CARD_W / 2, nameY + 18);
+        ctx.font = 'bold 8px Impact';
+        ctx.fillText(l1, X + CW / 2, namY + 9);
+        ctx.fillText(truncate(ctx, l2, maxW), X + CW / 2, namY + 19);
       }
 
       // Clube
       ctx.fillStyle = '#FFDF00';
-      ctx.font = '6.5px Arial, sans-serif';
-      ctx.fillText(truncate(ctx, j.clube, maxW), cx + CARD_W / 2, nameY + CARD_NAME_H - 3);
+      ctx.font = '6px Arial';
+      ctx.fillText(truncate(ctx, j.clube, maxW), X + CW / 2, namY + CH_NAM - 2);
 
       // Footer verde
-      const footY = nameY + CARD_NAME_H;
+      const ftY = namY + CH_NAM;
       ctx.fillStyle = '#009c3b';
-      ctx.beginPath();
-      ctx.moveTo(cx, footY);
-      ctx.lineTo(cx + CARD_W, footY);
-      ctx.lineTo(cx + CARD_W, footY + CARD_FOOT_H - 5);
-      ctx.quadraticCurveTo(cx + CARD_W, footY + CARD_FOOT_H, cx + CARD_W - 5, footY + CARD_FOOT_H);
-      ctx.lineTo(cx + 5, footY + CARD_FOOT_H);
-      ctx.quadraticCurveTo(cx, footY + CARD_FOOT_H, cx, footY + CARD_FOOT_H - 5);
-      ctx.lineTo(cx, footY);
-      ctx.closePath();
-      ctx.fill();
-
+      ctx.fillRect(X, ftY, CW, CH_FT);
       ctx.fillStyle = '#FFDF00';
-      ctx.font = 'bold 8px Impact, sans-serif';
+      ctx.font = 'bold 8px Impact';
       ctx.textAlign = 'center';
-      ctx.fillText(POSICAO_SHORT[posicao], cx + CARD_W / 2, footY + 10);
+      ctx.fillText(g.short, X + CW / 2, ftY + 10);
     }
 
-    // Avança curY para após os cards desta seção
-    const rows = Math.ceil(lista.length / COLS);
-    curY += rows * (CARD_H + CARD_GAP);
+    // Avança Y após os cards desta seção
+    const rows = Math.ceil(g.lista.length / COLS);
+    Y += rows * (CARD_H + GAP);
   }
 
-  // ── Footer ──
-  curY += 8;
+  // Footer
+  Y += 10;
   ctx.strokeStyle = 'rgba(255,223,0,0.2)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(PADDING, curY);
-  ctx.lineTo(CANVAS_W - PADDING, curY);
+  ctx.moveTo(PAD, Y);
+  ctx.lineTo(W - PAD, Y);
   ctx.stroke();
-  curY += 14;
+  Y += 16;
 
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.font = '10px Arial, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.font = '10px Arial';
   ctx.textAlign = 'left';
-  ctx.fillText('MONTE SUA SELEÇÃO • 2026', PADDING, curY);
+  ctx.fillText('MONTE SUA SELECAO • 2026', PAD, Y);
 
-  ctx.fillStyle = 'rgba(255,223,0,0.5)';
+  ctx.fillStyle = 'rgba(255,223,0,0.6)';
   ctx.textAlign = 'right';
-  ctx.fillText(`${jogadores.length}/26 CONVOCADOS`, CANVAS_W - PADDING, curY);
+  ctx.fillText(jogadores.length + '/26 CONVOCADOS', W - PAD, Y);
 
   return canvas;
 }
+
 
 export default function PosterModal({ jogadores, nomeUsuario, onClose }: Props) {
   const [gerando, setGerando] = useState(false);
