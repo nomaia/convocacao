@@ -331,6 +331,20 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        <button
+          onClick={async () => {
+            const url = '/players/1-alisson.png';
+            console.log('Testando fetch:', url);
+            const res = await fetch(url);
+            console.log('Status:', res.status, res.ok);
+            const blob = await res.blob();
+            console.log('Blob:', blob.type, blob.size);
+          }}
+          style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999, padding: '8px 16px', background: 'red', color: '#fff', border: 'none', cursor: 'pointer' }}
+        >
+          TESTAR FOTO
+        </button>
       </main>
 
       {/* Modal de nome */}
@@ -444,16 +458,4 @@ export default function Home() {
   );
 }
 
-<button
-  onClick={async () => {
-    const url = '/players/1-alisson.png';
-    console.log('Testando fetch:', url);
-    const res = await fetch(url);
-    console.log('Status:', res.status, res.ok);
-    const blob = await res.blob();
-    console.log('Blob:', blob.type, blob.size);
-  }}
-  style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999, padding: '8px 16px', background: 'red', color: '#fff', border: 'none', cursor: 'pointer' }}
->
-  TESTAR FOTO
-</button>
+
